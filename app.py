@@ -1,9 +1,9 @@
-from typing import re
-
 from flask import Flask, render_template, g, request
 from database import get_db, init_db_command
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+
 
 @app.teardown_appcontext
 def close_db(error):
@@ -19,13 +19,33 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        pass
+        db = get_db()
+        hashed_password = generate_password_hash(request.form['password'], method='sha256')
+        db.execute('insert into users (name, password, expert, admin) values (?, ?, ?, ?)',
+                   [request.form['name'], hashed_password, '0', '0'])
+        db.commit()
+
+        return '<h1>Eustero user created</h1>'
 
     return render_template('register.html')
 
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'POST':
+        db = get_db()
+
+        name = request.form['name']
+        password = request.form['password']
+
+        user_cur = db.execute('select id, name, password from users where name = ?', [name])
+        user_result = user_cur.fetchone()
+
+        if check_password_hash(user_result['password'], password):
+            return '<h1> The password is correct! </h1>'
+        else:
+            return '<h1> The password is incorrect! </h1>'
+
     return render_template('login.html')
 
 
